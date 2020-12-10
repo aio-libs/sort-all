@@ -1,0 +1,6 @@
+- id: sort-all
+  name: Sort __all__ records
+  description: Automatically Sort __all__ records alphabetically.
+  entry: sort-all
+  language: python
+  types: [python]
