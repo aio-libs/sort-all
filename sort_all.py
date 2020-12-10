@@ -38,12 +38,12 @@ class ValueVisitor(ast.NodeVisitor):
                     f"but it has non-const element {ast.dump(elt)}, skip sorting",
                 )
                 return
-            elif not isinstance(elt.value, str):
+            elif not isinstance(elt.s, str):
                 # `__all__` has non-constant element in the container
                 # Cannot process it
                 print(
                     f"{self._fname}:__all__ found "
-                    f"but it has non-string element {elt.value!r}, skip sorting",
+                    f"but it has non-string element {elt.s!r}, skip sorting",
                 )
                 return
             else:
@@ -127,9 +127,7 @@ def _fix_src(contents_text: str, fname: str) -> str:
     post_txt = tokens_to_src(post)
 
     if start.line == end.line:
-        body_txt = ", ".join(
-            f'"{elt.value}"' for elt in sorted(elts, key=attrgetter("value"))
-        )
+        body_txt = ", ".join(f'"{elt.s}"' for elt in sorted(elts, key=attrgetter("s")))
     else:
         body = tokens[len(pre) : -len(post)]
         for tok in body:
@@ -139,7 +137,7 @@ def _fix_src(contents_text: str, fname: str) -> str:
         else:
             indent = ""
         body_txt = ("\n" + indent).join(
-            f'"{elt.value}",' for elt in sorted(elts, key=attrgetter("value"))
+            f'"{elt.s}",' for elt in sorted(elts, key=attrgetter("s"))
         )
 
     if body_txt.endswith(",") and post_txt.startswith(","):
