@@ -221,3 +221,71 @@ def test_skip_multiple_all() -> None:
     )
 
     assert expected == sort_all._fix_src(txt, "<input>")
+
+
+def test_sort_ann_assign_simple() -> None:
+    txt = dedent(
+        """\
+        from typing import Tuple
+        from mod import name1, name2
+
+        __all__: Tuple[str, ...]
+        __all__ = ("name2", "name1")
+    """
+    )
+
+    expected = dedent(
+        """\
+        from typing import Tuple
+        from mod import name1, name2
+
+        __all__: Tuple[str, ...]
+        __all__ = ("name1", "name2")
+    """
+    )
+
+    assert expected == sort_all._fix_src(txt, "<input>")
+
+
+def test_sort_ann_assign_real() -> None:
+    txt = dedent(
+        """\
+        from typing import Tuple
+        from mod import name1, name2
+
+        __all__: Tuple[str, ...] = ('name2', 'name1')
+    """
+    )
+
+    expected = dedent(
+        """\
+        from typing import Tuple
+        from mod import name1, name2
+
+        __all__: Tuple[str, ...] = ("name1", "name2")
+    """
+    )
+
+    assert expected == sort_all._fix_src(txt, "<input>")
+
+
+def test_sort_aug_assign_real() -> None:
+    txt = dedent(
+        """\
+        from mod import name1, name2
+
+        __all__ = ('a', 'b')
+        __all__ += ('name2', 'name1')
+    """
+    )
+
+    expected = dedent(
+        """\
+        from mod import name1, name2
+
+        __all__ = ("a", "b")
+        __all__ += ("name1", "name2")
+    """
+    )
+
+    assert expected == sort_all._fix_src(txt, "<input>")

@@ -1,8 +1,9 @@
 import argparse
 import ast
+import sys
 import warnings
 from operator import attrgetter
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Tuple
 
 from tokenize_rt import Offset, Token, src_to_tokens, tokens_to_src
 
@@ -13,26 +14,29 @@ def ast_parse(contents_text: str) -> ast.Module:
         return ast.parse(contents_text.encode())
 
 
-class ValueVisitor(ast.NodeVisitor):
+class BaseVisitor:
+    def visit(self, root: ast.AST) -> None:
+        nodes: Sequence[ast.AST]
+        if isinstance(root, ast.Module):
+            nodes = root.body
+        else:
+            nodes = [root]
+        for node in nodes:
+            method = "visit_" + node.__class__.__name__
+            visitor = getattr(self, method, None)
+            if visitor is not None:
+                visitor(node)
+
+
+class ValueVisitor(BaseVisitor):
     def __init__(self, fname: str) -> None:
         self._fname = fname
-        self._elts: List[Union[ast.Constant, ast.Str]] = []
-        self._skip = False
+        self._elts: List[List[ast.Constant]] = []
 
     def _visit_elems(self, elts: List[ast.expr]) -> None:
-        if self._skip:
-            return
-        if self._elts:
-            self._skip = True
-            self._elts = []
-            print(
-                f"{self._fname}:__all__ found "
-                f"but it contains more than one list/set/tuple, skip sorting",
-            )
-            return
-        new_elts: List[Union[ast.Constant, ast.Str]] = []
+        new_elts: List[ast.Constant] = []
         for elt in elts:
-            if not isinstance(elt, (ast.Constant, ast.Str)):
+            if not isinstance(elt, ast.Constant):
                 print(
                     f"{self._fname}:__all__ found "
                     f"but it has non-const element {ast.dump(elt)}, skip sorting",
@@ -48,7 +52,7 @@ class ValueVisitor(ast.NodeVisitor):
                 return
             else:
                 new_elts.append(elt)
-        self._elts = new_elts
+        self._elts.append(new_elts)
 
     def visit_List(self, node: ast.List) -> None:
         self._visit_elems(node.elts)
@@ -60,37 +64,48 @@ class ValueVisitor(ast.NodeVisitor):
         self._visit_elems(node.elts)
 
 
-class Visitor(ast.NodeVisitor):
+class Visitor(BaseVisitor):
     def __init__(self, fname: str) -> None:
-        self._elts: List[Union[ast.Constant, ast.Str]] = []
+        self._elts: List[List[ast.Constant]] = []
         self._fname = fname
-        self._skip = False
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        pass  # ignore nested assignments
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        pass  # ignore nested assignments
-
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        pass  # ignore nested assignments
-
-    def visit_Assign(self, node: ast.Assign) -> None:
-        if self._skip:
-            return
+    def visit_ass(self, value: ast.AST, targets: List[ast.expr]) -> None:
         found = False
-        for tgt in node.targets:
+        for tgt in targets:
             if isinstance(tgt, ast.Name) and tgt.id == "__all__":
                 found = True
                 break
         if found:
             visitor = ValueVisitor(self._fname)
-            visitor.visit(node.value)
-            if self._elts:
-                print(f"Multiple assignment to {self._fname}:__all__, skipping")
-                self._skip = True
-                self._elts = []
-            self._elts = visitor._elts
+            visitor.visit(value)
+            self._elts.extend(visitor._elts)
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        self.visit_ass(node.value, node.targets)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if node.value is not None:
+            self.visit_ass(node.value, [node.target])
+
+    def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        self.visit_ass(node.value, [node.target])
+
+
+def consume(tokens: List[Token], start: int, pos: Offset) -> Tuple[str, int]:
+    toks: List[Token] = []
+    for idx, tok in enumerate(tokens[start:]):
+        if tok.offset == pos:
+            break
+        else:
+            toks.append(tok)
+    return tokens_to_src(toks), start + idx
+
+
+def scan(tokens: List[Token], start: int, pos: Offset) -> int:
+    for idx, tok in enumerate(tokens[start:]):
+        if tok.offset == pos:
+            break
+    return start + idx
 
 
 def _fix_src(contents_text: str, fname: str) -> str:
@@ -101,52 +116,46 @@ def _fix_src(contents_text: str, fname: str) -> str:
 
     visitor = Visitor(fname)
     visitor.visit(ast_obj)
-    elts = visitor._elts
-    if not elts:
+    if not visitor._elts:
         return contents_text
 
     tokens = src_to_tokens(contents_text)
+    chunks = []
+    idx = 0
 
-    start = Offset(elts[0].lineno, elts[0].col_offset)
-    pre: List[Token] = []
-    for tok in tokens:
-        if tok.offset == start:
-            break
+    for elts in visitor._elts:
+        start = Offset(elts[0].lineno, elts[0].col_offset)
+        chunk, idx = consume(tokens, idx, start)
+        chunks.append(chunk)
+
+        end = Offset(elts[-1].end_lineno, elts[-1].end_col_offset)
+        idx2 = scan(tokens, idx, end)
+
+        if start.line == end.line:
+            chunk = ", ".join(
+                f'"{elt.value}"' for elt in sorted(elts, key=attrgetter("value"))
+            )
         else:
-            pre.append(tok)
-    pre_txt = tokens_to_src(pre)
+            for tok in tokens[idx:idx2]:
+                if tok.name in ("INDENT", "UNIMPORTANT_WS"):
+                    indent = tok.src
+                    break
+            else:
+                indent = ""
+            chunk = ("\n" + indent).join(
+                f'"{elt.value}",' for elt in sorted(elts, key=attrgetter("value"))
+            )
 
-    end = Offset(elts[-1].end_lineno, elts[-1].end_col_offset)
-    post: List[Token] = []
-    for tok in reversed(tokens):
-        post.append(tok)
-        if tok.offset == end:
-            post.reverse()
-            break
+        if chunk.endswith(",") and tokens[idx2].src.startswith(","):
+            # drop double comma
+            chunk = chunk[:-1]
 
-    post_txt = tokens_to_src(post)
+        chunks.append(chunk)
+        idx = idx2
 
-    if start.line == end.line:
-        body_txt = ", ".join(
-            f'"{elt.value}"' for elt in sorted(elts, key=attrgetter("value"))
-        )
-    else:
-        body = tokens[len(pre) : -len(post)]
-        for tok in body:
-            if tok.name in ("INDENT", "UNIMPORTANT_WS"):
-                indent = tok.src
-                break
-        else:
-            indent = ""
-        body_txt = ("\n" + indent).join(
-            f'"{elt.value}",' for elt in sorted(elts, key=attrgetter("value"))
-        )
-
-    if body_txt.endswith(",") and post_txt.startswith(","):
-        # drop double comma
-        body_txt = body_txt[:-1]
-
-    return pre_txt + body_txt + post_txt
+    chunk, idx = consume(tokens, idx, Offset(sys.maxsize, 0))
+    chunks.append(chunk)
+    return "".join(chunks)
 
 
 def fix_file(filename: str) -> int:
