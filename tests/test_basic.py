@@ -289,3 +289,42 @@ def test_sort_aug_assign_real() -> None:
     )
 
     assert expected == sort_all._fix_src(txt, "<input>")
+
+def test_sort_empty_tuple() -> None:
+    txt = dedent(
+        """\
+        from mod import name1, name2
+
+        __all__ = ()
+    """
+    )
+
+    expected = dedent(
+        """\
+        from mod import name1, name2
+
+        __all__ = ()
+    """
+    )
+
+    assert expected == sort_all._fix_src(txt, "<input>")
+
+
+def test_sort_empty_list() -> None:
+    txt = dedent(
+        """\
+        from mod import name1, name2
+
+        __all__ = []
+    """
+    )
+
+    expected = dedent(
+        """\
+        from mod import name1, name2
+
+        __all__ = []
+    """
+    )
+
+    assert expected == sort_all._fix_src(txt, "<input>")
