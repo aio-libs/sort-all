@@ -290,6 +290,7 @@ def test_sort_aug_assign_real() -> None:
 
     assert expected == sort_all._fix_src(txt, "<input>")
 
+
 def test_sort_empty_tuple() -> None:
     txt = dedent(
         """\
