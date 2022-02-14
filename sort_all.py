@@ -124,6 +124,9 @@ def _fix_src(contents_text: str, fname: str) -> str:
     idx = 0
 
     for elts in visitor._elts:
+        if not elts:
+            continue
+
         start = Offset(elts[0].lineno, elts[0].col_offset)
         chunk, idx = consume(tokens, idx, start)
         chunks.append(chunk)
