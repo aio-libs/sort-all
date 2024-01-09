@@ -161,7 +161,7 @@ def _fix_src(contents_text: str, fname: str) -> str:
     return "".join(chunks)
 
 
-def fix_file(filename: str) -> int:
+def fix_file(filename: str, write: bool = True, error_on_fix: bool = True) -> int:
     with open(filename, "rb") as f:
         contents_bytes = f.read()
 
@@ -172,23 +172,37 @@ def fix_file(filename: str) -> int:
         return 1
 
     new_content = _fix_src(contents_text, filename)
-    if new_content != contents_text:
-        print(f"Rewriting {filename}")
-        with open(filename, "wb") as f:
-            f.write(new_content.encode())
-        return 1
-    else:
+    if new_content == contents_text:
         return 0
+
+    retv = 1 if error_on_fix else 0
+
+    if not write:
+        print(f"Found unsorted {filename}")
+        return retv
+
+    print(f"Rewriting {filename}")
+    with open(filename, "wb") as f:
+        f.write(new_content.encode())
+
+    return retv
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser()
+    # add --check flag
+    parser.add_argument("--check", action="store_true")
+    parser.add_argument("--no-error-on-fix", action="store_true")
     parser.add_argument("filenames", nargs="*")
     args = parser.parse_args(argv)
 
     retv = 0
     for filename in args.filenames:
-        retv |= fix_file(filename)
+        retv |= fix_file(
+            filename,
+            write=not args.check,
+            error_on_fix=not args.no_error_on_fix,
+        )
     return retv
 
 
