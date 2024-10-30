@@ -92,7 +92,7 @@ jobs:
 
   test-summary:
     if: always()
-    needs: [lint, unit]
+    needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
     - name: Test matrix status
