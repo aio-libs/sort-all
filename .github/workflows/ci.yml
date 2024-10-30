@@ -25,7 +25,7 @@ jobs:
     - name: Setup Python 3.8
       uses: actions/setup-python@v4
     - name: Cache PyPI
-      uses: actions/cache@v2
+      uses: actions/cache@v3.0.11
       with:
         key: pip-lint-${{ hashFiles('requirements.txt') }}
         path: ~/.cache/pip
@@ -62,7 +62,7 @@ jobs:
       run: |
         echo "::set-output name=dir::$(pip cache dir)"    # - name: Cache
     - name: Cache PyPI
-      uses: actions/cache@v2
+      uses: actions/cache@v3.0.11
       with:
         key: pip-ci-${{ matrix.pyver }}-${{ hashFiles('requirements.txt') }}
         path: ${{ steps.pip-cache.outputs.dir }}
