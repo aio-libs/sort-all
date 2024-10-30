@@ -39,6 +39,7 @@ sort-all can be used as a hook for pre-commit_.
 To add sort-all as a plugin, add this repo definition to your configuration:
 
 .. code-block:: yaml
+
    repos:
    - repo: https://github.com/aio-libs/sort-all
      rev: ...  # select the tag or revision you want, or run `pre-commit autoupdate`
