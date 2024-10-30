@@ -190,15 +190,28 @@ def fix_file(filename: str, write: bool = True, error_on_fix: bool = True) -> in
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Sort __all__ records alphabetically.")
     # add --check flag
-    parser.add_argument("--check", action="store_true")
-    parser.add_argument("--no-error-on-fix", action="store_true")
-    parser.add_argument("filenames", nargs="*")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="check the file for unsorted / unformatted imports and "
+        "print them to the command line without modifying the file; "
+        "return 0 when nothing would change and "
+        "return 1 when the file would be reformatted.",
+    )
+    parser.add_argument(
+        "--no-error-on-fix",
+        action="store_true",
+        help="return 0 even if errors are occurred during processing files",
+    )
+    parser.add_argument("filenames", nargs="*", help="Files to process")
     args = parser.parse_args(argv)
 
     retv = 0
     for filename in args.filenames:
+        if not filename.endswith((".py", ".pyx", ".pyi", ".pyd")):
+            continue
         retv |= fix_file(
             filename,
             write=not args.check,
