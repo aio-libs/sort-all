@@ -2,9 +2,9 @@ import argparse
 import ast
 import sys
 import warnings
-from operator import attrgetter
-from typing import List, Optional, Tuple
 from collections.abc import Sequence
+from operator import attrgetter
+from typing import Optional
 
 from tokenize_rt import Offset, Token, src_to_tokens, tokens_to_src
 
