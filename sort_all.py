@@ -2,8 +2,9 @@ import argparse
 import ast
 import sys
 import warnings
+from collections.abc import Sequence
 from operator import attrgetter
-from typing import List, Optional, Sequence, Tuple
+from typing import Optional
 
 from tokenize_rt import Offset, Token, src_to_tokens, tokens_to_src
 
@@ -31,10 +32,10 @@ class BaseVisitor:
 class ValueVisitor(BaseVisitor):
     def __init__(self, fname: str) -> None:
         self._fname = fname
-        self._elts: List[List[ast.Constant]] = []
+        self._elts: list[list[ast.Constant]] = []
 
-    def _visit_elems(self, elts: List[ast.expr]) -> None:
-        new_elts: List[ast.Constant] = []
+    def _visit_elems(self, elts: list[ast.expr]) -> None:
+        new_elts: list[ast.Constant] = []
         for elt in elts:
             if not isinstance(elt, ast.Constant):
                 print(
@@ -66,10 +67,10 @@ class ValueVisitor(BaseVisitor):
 
 class Visitor(BaseVisitor):
     def __init__(self, fname: str) -> None:
-        self._elts: List[List[ast.Constant]] = []
+        self._elts: list[list[ast.Constant]] = []
         self._fname = fname
 
-    def visit_ass(self, value: ast.AST, targets: List[ast.expr]) -> None:
+    def visit_ass(self, value: ast.AST, targets: list[ast.expr]) -> None:
         found = False
         for tgt in targets:
             if isinstance(tgt, ast.Name) and tgt.id == "__all__":
@@ -91,8 +92,8 @@ class Visitor(BaseVisitor):
         self.visit_ass(node.value, [node.target])
 
 
-def consume(tokens: List[Token], start: int, pos: Offset) -> Tuple[str, int]:
-    toks: List[Token] = []
+def consume(tokens: list[Token], start: int, pos: Offset) -> tuple[str, int]:
+    toks: list[Token] = []
     for idx, tok in enumerate(tokens[start:]):
         if tok.offset == pos:
             break
@@ -101,7 +102,7 @@ def consume(tokens: List[Token], start: int, pos: Offset) -> Tuple[str, int]:
     return tokens_to_src(toks), start + idx
 
 
-def scan(tokens: List[Token], start: int, pos: Offset) -> int:
+def scan(tokens: list[Token], start: int, pos: Offset) -> int:
     for idx, tok in enumerate(tokens[start:]):
         if tok.offset == pos:
             break
