@@ -1,4 +1,4 @@
 -e .
-pre-commit==4.0.1
+pre-commit==4.1.0
 pytest==8.3.4
 pytest-cov==6.0.0
