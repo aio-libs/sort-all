@@ -3,6 +3,8 @@ import ast
 import sys
 import warnings
 from collections.abc import Sequence
+from glob import glob
+from itertools import chain
 from operator import attrgetter
 from typing import Optional
 
@@ -209,7 +211,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     retv = 0
-    for filename in args.filenames:
+    for filename in chain.from_iterable(*map(glob, args.filenames)):
         if not filename.endswith((".py", ".pyx", ".pyi", ".pyd")):
             continue
         retv |= fix_file(
