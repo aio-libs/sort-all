@@ -211,7 +211,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     retv = 0
-    for filename in chain.from_iterable(*map(glob, args.filenames)):
+    for filename in chain.from_iterable(map(glob, args.filenames)):
         if not filename.endswith((".py", ".pyx", ".pyi", ".pyd")):
             continue
         retv |= fix_file(
